@@ -1,6 +1,6 @@
 conn = ({:host => '127.0.0.1', :username => 'root', :password => node['mysql']['server_root_password']})
 
-template /root/.ssh/authorized_keys do
+template '/root/.ssh/authorized_keys' do
   source 'public.key'
   owner 'root'
   group 'root'
