@@ -27,7 +27,7 @@ end
 dump = Chef::Config[:file_cache_path] + "/dump.sql"
 create_dump = ' mysqldump --skip-lock-tables --single-transaction --flush-logs --hex-blob --master-data=2 -h127.0.0.1 -uroot -p' + node['mysql']['server_root_password'] + ' ' + node['dbrepl']['database']
 execute "get_dump"  do
-  command "ssh root@" + node['dbrepl']['master_host'] + ' "' + create_dump + '" > ' + dump
+  command "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ssh-keys/id_rsa root@" + node['dbrepl']['master_host'] + ' "' + create_dump + '" > ' + dump
   action :run
 end
 
