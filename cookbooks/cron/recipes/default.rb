@@ -1,8 +1,8 @@
 #
-# Cookbook Name:: users
+# Cookbook Name:: cron
 # Recipe:: default
 #
-# Copyright 2009-2012, Chef Software, Inc.
+# Copyright 2010-2013, Opscode, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,4 +17,19 @@
 # limitations under the License.
 #
 
-# Empty default recipe for including LWRPs.
+package 'cron' do
+  package_name case node['platform_family']
+               when 'rhel', 'fedora'
+                 node['platform_version'].to_f >= 6.0 ? 'cronie' : 'vixie-cron'
+               when 'solaris2'
+                 'core-os'
+               when 'gentoo'
+                 'vixie-cron'
+               end
+end
+
+service 'cron' do
+  service_name 'crond' if platform_family?('rhel', 'fedora')
+  service_name 'vixie-cron' if platform_family?('gentoo')
+  action [:enable, :start]
+end
