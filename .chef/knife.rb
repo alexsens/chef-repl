@@ -1,1 +1,1 @@
-cookbook_path [ '/root/chef-repo/cookbooks' ]
+cookbook_path [ '/root/chef-repl/cookbooks' ]
