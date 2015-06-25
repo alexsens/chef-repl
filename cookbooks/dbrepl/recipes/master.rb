@@ -1,3 +1,4 @@
+conn = ({:host => '127.0.0.1', :username => 'root', :password => node['mysql']['server_root_password']})
 mysql2_chef_gem 'default' do
   action :install
 end
@@ -22,8 +23,13 @@ mysql_database node['dbrepl']['database'] do
   action :create
 end
 mysql_database 'grant_repl' do
-  connection ({:host => '127.0.0.1', :username => 'root', :password => node['mysql']['server_root_password']})
+  connection conn
   sql "GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%' IDENTIFIED BY '" + node['mysql']['server_repl_password']+ "' ;"
+  action :query
+end
+
+mysql_database 'flush' do
+  connection conn
   sql "FLUSH PRIVILEGES;"
   action :query
 end

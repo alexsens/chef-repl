@@ -1,4 +1,4 @@
-#include_recipe "users"
+conn = ({:host => '127.0.0.1', :username => 'root', :password => node['mysql']['server_root_password']})
 
 mysql2_chef_gem 'default' do
   action :install
@@ -20,40 +20,19 @@ mysql_config 'master replication' do
 end
 
 mysql_database node['dbrepl']['database'] do
-  connection ({:host => '127.0.0.1', :username => 'root', :password => node['mysql']['server_root_password']})
+  connection conn
   action :create
 end
 
 dump = Chef::Config[:file_cache_path] + "/dump.sql"
 create_dump = ' mysqldump --skip-lock-tables --single-transaction --flush-logs --hex-blob --master-data=2 -h127.0.0.1 -uroot -p' + node['mysql']['server_root_password'] + ' ' + node['dbrepl']['database']
 execute "get_dump"  do
-  command "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ssh-keys/id_rsa root@" + node['dbrepl']['master_host'] + ' "' + create_dump + '" > ' + dump
+  command "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /root/.ssh/id_rsa root@" + node['dbrepl']['master_host'] + ' "' + create_dump + '" > ' + dump
   action :run
 end
 
-#position = Chef::Config[:file_cache_path] + "/position"
-#execute "get_position" do
-#  command "head -n80 " + dump + " | grep MASTER_LOG_POS | awk '{ print $6 }' | cut -f2 -d '=' | cut -f1 -d';' | tr -d '\n' > " + position
-#  action :run
-#end
-#f = File.open(position)
-#position = f.read
-#f.close
 Chef::Resource::RubyBlock.send(:include, Chef::Mixin::ShellOut)
-#ruby_block "qwe" do
-#block do
-#  command = "head -n80 " + dump + " | grep MASTER_LOG_POS | awk '{ print $6 }' | cut -f2 -d '=' | cut -f1 -d';' | tr -d '\n'"
-#  position = shell_out(command)
-#end
-#end 
-#master_log_file = Chef::Config[:file_cache_path] + "/master_log_file"
-#execute "get_master_log_file" do
-#  command "head -n80 " + dump + " | grep MASTER_LOG_FILE | awk '{ print $5 }' | awk -F\\' '{print $2}' | tr -d '\n' > " + master_log_file
-#  action :run
-#end
-#f = File.open(master_log_file)
-#master_log_file = f.read
-#f.close
+
 command = "head -n80 " + dump + " | grep MASTER_LOG_FILE | awk '{ print $5 }' | awk -F\\' '{print $2}' | tr -d '\n'"
 mlf = Chef::ShellOut.new(command)
 mlf.run_command
@@ -70,8 +49,13 @@ execute "load-dump" do
 end
 
 mysql_database "start slave" do
-  connection ({:host => '127.0.0.1', :username => 'root', :password => node['mysql']['server_root_password']})
+  connection conn
   sql "CHANGE MASTER TO MASTER_HOST='" + node['dbrepl']['master_host'] + "', MASTER_USER='" + node['dbrepl']['master_user'] + "', MASTER_PASSWORD='" + node['mysql']['server_repl_password'] + "', MASTER_LOG_FILE ='" + master_log_file + "', MASTER_LOG_POS=" + position + ";"
+  sql "START SLAVE"
+  action :query
+end
+mysql_database "flush" do
+  connection conn
   sql "START SLAVE"
   action :query
 end
