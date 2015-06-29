@@ -53,18 +53,20 @@ position = p.stdout
 
 execute "load-dump" do
   command "mysql -h127.0.0.1 -uroot -p" + node['mysql']['server_root_password'] + " " + node['dbrepl']['database'] + " < " + dump
-  action :run
+  action :nothing
 end
 
-mysql_database "start slave" do
+mysql_database "change_master" do
   connection conn
   sql "CHANGE MASTER TO MASTER_HOST='" + node['dbrepl']['master_host'] + "', MASTER_USER='" + node['dbrepl']['master_user'] + "', MASTER_PASSWORD='" + node['mysql']['server_repl_password'] + "', MASTER_LOG_FILE ='" + master_log_file + "', MASTER_LOG_POS=" + position + ";"
-  action :query
+  action :nothing 
+  notifies :run, 'execute[load-dump]', :immediately
 end
-mysql_database "flush" do
+mysql_database "start_slave" do
   connection conn
   sql "START SLAVE"
   action :query
+  notifies :query, 'mysql_database[change_master]', :immediately
 end
 
 template '/root/check-master.sh' do
