@@ -39,6 +39,11 @@ execute "get_dump"  do
   action :run
 end
 
+execute "load-dump" do
+  command "mysql -h127.0.0.1 -uroot -p" + node['mysql']['server_root_password'] + " " + node['dbrepl']['database'] + " < " + dump
+  action :run
+end
+
 Chef::Resource::RubyBlock.send(:include, Chef::Mixin::ShellOut)
 
 command = "head -n80 " + dump + " | grep MASTER_LOG_FILE | awk '{ print $5 }' | awk -F\\' '{print $2}' | tr -d '\n'"
@@ -51,9 +56,17 @@ p = Chef::ShellOut.new(command)
 p.run_command
 position = p.stdout
 
-execute "load-dump" do
-  command "mysql -h127.0.0.1 -uroot -p" + node['mysql']['server_root_password'] + " " + node['dbrepl']['database'] + " < " + dump
-  action :run
+
+
+mysql_database "change_master" do
+  connection conn
+  sql "CHANGE MASTER TO MASTER_HOST='" + node['dbrepl']['master_host'] + "', MASTER_USER='" + node['dbrepl']['master_user'] + "', MASTER_PASSWORD='" + node['mysql']['server_repl_password'] + "', MASTER_LOG_FILE ='" + master_log_file + "', MASTER_LOG_POS=" + position + ";"
+  action :query
+end
+mysql_database "start_slave" do
+  connection conn
+  sql "START SLAVE"
+  action :query
 end
 
 template '/root/check-master.sh' do
@@ -75,15 +88,3 @@ cron 'check-master' do
   command '/root/check-master.sh'
   user    'root'
 end
-
-mysql_database "change_master" do
-  connection conn
-  sql "CHANGE MASTER TO MASTER_HOST='" + node['dbrepl']['master_host'] + "', MASTER_USER='" + node['dbrepl']['master_user'] + "', MASTER_PASSWORD='" + node['mysql']['server_repl_password'] + "', MASTER_LOG_FILE ='" + master_log_file + "', MASTER_LOG_POS=" + position + ";"
-  action :query
-end
-mysql_database "start_slave" do
-  connection conn
-  sql "START SLAVE"
-  action :query
-end
-
