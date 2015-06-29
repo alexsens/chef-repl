@@ -56,17 +56,6 @@ execute "load-dump" do
   action :run
 end
 
-mysql_database "start slave" do
-  connection conn
-  sql "CHANGE MASTER TO MASTER_HOST='" + node['dbrepl']['master_host'] + "', MASTER_USER='" + node['dbrepl']['master_user'] + "', MASTER_PASSWORD='" + node['mysql']['server_repl_password'] + "', MASTER_LOG_FILE ='" + master_log_file + "', MASTER_LOG_POS=" + position + ";"
-  action :query
-end
-mysql_database "flush" do
-  connection conn
-  sql "START SLAVE"
-  action :query
-end
-
 template '/root/check-master.sh' do
   source 'check-master.sh'
   owner 'root'
@@ -86,3 +75,15 @@ cron 'check-master' do
   command '/root/check-master.sh'
   user    'root'
 end
+
+mysql_database "change_master" do
+  connection conn
+  sql "CHANGE MASTER TO MASTER_HOST='" + node['dbrepl']['master_host'] + "', MASTER_USER='" + node['dbrepl']['master_user'] + "', MASTER_PASSWORD='" + node['mysql']['server_repl_password'] + "', MASTER_LOG_FILE ='" + master_log_file + "', MASTER_LOG_POS=" + position + ";"
+  action :query
+end
+mysql_database "start_slave" do
+  connection conn
+  sql "START SLAVE"
+  action :query
+end
+
