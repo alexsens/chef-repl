@@ -1,4 +1,5 @@
 conn = ({:host => '127.0.0.1', :username => 'root', :password => node['mysql']['server_root_password']})
+Chef::Resource::RubyBlock.send(:include, Chef::Mixin::ShellOut)
 
 template '/root/.ssh/id_rsa' do
   source 'private.key'
@@ -36,16 +37,13 @@ dump = Chef::Config[:file_cache_path] + "/dump.sql"
 create_dump = ' mysqldump --skip-lock-tables --single-transaction --flush-logs --hex-blob --master-data=2 -h127.0.0.1 -uroot -p' + node['mysql']['server_root_password'] + ' ' + node['dbrepl']['database']
 execute "get_dump"  do
   command "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /root/.ssh/id_rsa root@" + node['dbrepl']['master_host'] + ' "' + create_dump + '" > ' + dump
-  action :run
 end
 
 execute "load-dump" do
   command "mysql -h127.0.0.1 -uroot -p" + node['mysql']['server_root_password'] + " " + node['dbrepl']['database'] + " < " + dump
-  action :run
 end
 
-Chef::Resource::RubyBlock.send(:include, Chef::Mixin::ShellOut)
-if File.exist?(dump)
+if File.exist?(" " + dump)
   command = "head -n80 " + dump + " | grep MASTER_LOG_FILE | awk '{ print $5 }' | awk -F\\' '{print $2}' | tr -d '\n'"
   mlf = Chef::ShellOut.new(command)
   mlf.run_command
@@ -55,7 +53,6 @@ if File.exist?(dump)
   p.run_command
   position = p.stdout
 end
-
 unless master_log_file.nil?
     mysql_database "change_master" do
     connection conn
