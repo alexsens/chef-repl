@@ -45,23 +45,23 @@ execute "load-dump" do
 end
 
 Chef::Resource::RubyBlock.send(:include, Chef::Mixin::ShellOut)
+if File.exist?(dump)
+  command = "head -n80 " + dump + " | grep MASTER_LOG_FILE | awk '{ print $5 }' | awk -F\\' '{print $2}' | tr -d '\n'"
+  mlf = Chef::ShellOut.new(command)
+  mlf.run_command
+  master_log_file = mlf.stdout
+  command = "head -n80 " + dump + " | grep MASTER_LOG_POS | awk '{ print $6 }' | cut -f2 -d '=' | cut -f1 -d';' | tr -d '\n'"
+  p = Chef::ShellOut.new(command)
+  p.run_command
+  position = p.stdout
+end
 
-command = "head -n80 " + dump + " | grep MASTER_LOG_FILE | awk '{ print $5 }' | awk -F\\' '{print $2}' | tr -d '\n'"
-mlf = Chef::ShellOut.new(command)
-mlf.run_command
-master_log_file = mlf.stdout
-
-command = "head -n80 " + dump + " | grep MASTER_LOG_POS | awk '{ print $6 }' | cut -f2 -d '=' | cut -f1 -d';' | tr -d '\n'"
-p = Chef::ShellOut.new(command)
-p.run_command
-position = p.stdout
-
-
-
-mysql_database "change_master" do
-  connection conn
-  sql "CHANGE MASTER TO MASTER_HOST='" + node['dbrepl']['master_host'] + "', MASTER_USER='" + node['dbrepl']['master_user'] + "', MASTER_PASSWORD='" + node['mysql']['server_repl_password'] + "', MASTER_LOG_FILE ='" + master_log_file + "', MASTER_LOG_POS=" + position + ";"
-  action :query
+unless master_log_file.nil?
+    mysql_database "change_master" do
+    connection conn
+    sql "CHANGE MASTER TO MASTER_HOST='" + node['dbrepl']['master_host'] + "', MASTER_USER='" + node['dbrepl']['master_user'] + "', MASTER_PASSWORD='" + node['mysql']['server_repl_password'] + "', MASTER_LOG_FILE ='" + master_log_file + "', MASTER_LOG_POS=" + position + ";"
+    action :query
+  end
 end
 mysql_database "start_slave" do
   connection conn
